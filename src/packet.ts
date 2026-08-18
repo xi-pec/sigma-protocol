@@ -24,7 +24,7 @@
 
     - Relevant flags are only:
         -> TP-UDHI (User Data Header Indicator) on Bit 6
-        -> TP-MTI (Message Time Indicator) on Bits 0-1, may be useful in the future.
+        -> TP-MTI (Message Type Indicator) on Bits 0-1, may be useful in the future.
 
     
     Second Octet (Byte 1)
@@ -65,6 +65,9 @@
         |-> IE-DL - IE data length
         |-> IE-Data - actual IE data
 
+        - *** SMS Concatenation:
+        |-> TBD
+
         - *** SIGMA signature will be stored as an IE with the following parameters:
         |-> IEI: 0x80
         |-> IE-DL: size of signature
@@ -82,3 +85,133 @@
        the physical length of the buffer in memory is [(septets * 7) / 8] octets.
        For 8-bit binary and UCS-2 unicode, character count and byte length match.
 */
+
+export enum SMSFlagsBitmask {
+    MTI = 0x03, // TP-MTI
+    UDHI = 0x40 // TP-UDHI
+}
+
+export enum SMSEncoding {
+    GSM = 0x00, // 7-bit GSM
+    UTF8 = 0x04, // 8-bit UTF8
+    UNICODE = 0x08 // 16-bit Unicode
+}
+
+export interface SMSInformationElement {
+    identifier: number, // IEI
+    value: Uint8Array // IE-Data
+}
+
+export interface SMSPacket {
+    encoding: SMSEncoding // TP-DCS
+    elements: SMSInformationElement[] // TP-UDH (IEs)
+    payload: Uint8Array; // TP-UD (Message Body)
+}
+
+export function serialize(packet: SMSPacket): Uint8Array {
+    const has_header = packet.elements.length > 0
+
+    // Get size of TP-UDH (this is TP-UDHL)
+    let header_size = packet.elements
+        .map(e => e.value.length + 2)
+        .reduce((a, b) => a + b)
+
+    header_size += header_size ? 1 : 0
+
+    // Get size of TP-UD (this is TP-UDL)
+    let data_size = 0
+
+    if (packet.encoding == SMSEncoding.GSM) {
+        // GSM uses septets instead of octets
+        const header = Math.ceil((header_size * 8) / 7)
+        const body = Math.floor((packet.payload.length * 8) / 7)
+
+        data_size = header + body
+    } else {
+        // UTF8 and Unicode uses octets
+        data_size = header_size + packet.payload.length
+    }
+
+    let size = header_size + packet.payload.length
+    // TODO: Add 140 byte maximum limit
+
+    // Construct serialized data
+    const buffer = new Uint8Array(3 + size)
+
+    // Byte 0 (Flags)
+    // Bit 0-1 -> SUBMIT (0x01); Bit 6 -> set if UDH present
+    buffer[0] = 0x01 | (has_header ? SMSFlagsBitmask.UDHI : 0x00);
+    
+    // Byte 1 (TP-DCS)
+    buffer[1] = packet.encoding
+
+    // Byte 2 (TP-UDL)
+    buffer[2] = data_size
+
+    // Bytes 3 to N (TP-UD)
+    let offset = 3;
+
+    if (has_header) {
+        // TP-UDHL
+        buffer[offset++] = header_size;
+
+        // IEs
+        for (const element of packet.elements) {
+            buffer[offset++] = element.identifier & 0xFF // IEI
+            buffer[offset++] = element.value.length & 0xFF // IE-DL
+            buffer.set(element.value, offset); // IE-Data
+            offset += element.value.length
+        }
+    }
+
+    // TP-UD Message Payload
+    buffer.set(packet.payload, offset)
+
+    return buffer
+}
+
+export function deserialize(raw: Uint8Array): SMSPacket {
+    // TODO: Add minimum 3-byte length
+
+    const flags = raw[0]; // Flags
+    const encoding = raw[1] as SMSEncoding; // TP-DCS
+    const data_size = raw[2]; // TP-UDL
+
+    const has_header = (flags & SMSFlagsBitmask.UDHI) !== 0
+    const data = raw.subarray(3) // TP-UD
+
+    // Extract IE data
+    const elements: SMSInformationElement[] = [];
+    let payload_offset = 0;
+
+    if (has_header) {
+        // TODO: Add check for 0-length malformation
+        
+        const header_size = data[0] // TP-UDHL
+        payload_offset = header_size + 1
+
+        // TODO: Add offset and TP-UD length bounds check
+
+        let element_offset = 1;
+        while (element_offset < header_size + 1) {
+            const identifier = data[element_offset] // IEI
+            const element_size = data[element_offset + 1] // IE-DL
+            const value = data.subarray(element_offset + 2, element_offset + 2 + element_size) // IE-Data
+
+            elements.push({ identifier, value })
+            element_offset += element_size + 2
+        }
+    }
+
+    //  TP-UD Message Payload
+    const payload = data.subarray(payload_offset)
+
+    // Reconstruct Packet
+    const packet: SMSPacket = {
+        encoding,
+        elements,
+        payload
+    }
+
+    return packet
+}
