@@ -179,6 +179,19 @@ export function deserialize(raw: Uint8Array): SMSPacket {
 
     const has_header = (flags & SMSFlagsBitmask.UDHI) !== 0
     const data = raw.subarray(3) // TP-UD
+    
+    // Get actual TP-UD data size
+    let actual_data_size = 0;
+    
+    if (encoding === SMSEncoding.GSM) {
+        actual_data_size = Math.ceil((data_size * 7) / 8)
+    } else {
+        actual_data_size = data_size
+    }
+
+    // TODO: Add guard for expected and actual size mismatch
+
+    const bounded_data = data.subarray(0, actual_data_size)
 
     // Extract IE data
     const elements: SMSInformationElement[] = [];
@@ -187,16 +200,16 @@ export function deserialize(raw: Uint8Array): SMSPacket {
     if (has_header) {
         // TODO: Add check for 0-length malformation
         
-        const header_size = data[0] // TP-UDHL
+        const header_size = bounded_data[0] // TP-UDHL
         payload_offset = header_size + 1
 
         // TODO: Add offset and TP-UD length bounds check
 
         let element_offset = 1;
         while (element_offset < header_size + 1) {
-            const identifier = data[element_offset] // IEI
-            const element_size = data[element_offset + 1] // IE-DL
-            const value = data.subarray(element_offset + 2, element_offset + 2 + element_size) // IE-Data
+            const identifier = bounded_data[element_offset] // IEI
+            const element_size = bounded_data[element_offset + 1] // IE-DL
+            const value = bounded_data.subarray(element_offset + 2, element_offset + 2 + element_size) // IE-Data
 
             elements.push({ identifier, value })
             element_offset += element_size + 2
@@ -204,7 +217,7 @@ export function deserialize(raw: Uint8Array): SMSPacket {
     }
 
     //  TP-UD Message Payload
-    const payload = data.subarray(payload_offset)
+    const payload = bounded_data.subarray(payload_offset)
 
     // Reconstruct Packet
     const packet: SMSPacket = {
