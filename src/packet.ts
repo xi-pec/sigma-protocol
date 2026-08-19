@@ -108,6 +108,22 @@ export interface SMSPacket {
     payload: Uint8Array; // TP-UD (Message Body)
 }
 
+export interface SMSBuildOptions {
+    encoding: SMSEncoding
+    elements: SMSInformationElement[]
+}
+
+export function build(payload: Uint8Array, options?: SMSBuildOptions): SMSPacket {
+    // TODO: possible encoding detection and IE validation?
+    const packet: SMSPacket = {
+        encoding: options?.encoding ?? SMSEncoding.GSM,
+        elements: options?.elements ?? [],
+        payload
+    }
+
+    return packet
+}
+
 export function serialize(packet: SMSPacket): Uint8Array {
     const has_header = packet.elements.length > 0
 
