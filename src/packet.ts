@@ -109,8 +109,8 @@ export interface SMSPacket {
 }
 
 export interface SMSBuildOptions {
-    encoding: SMSEncoding
-    elements: SMSInformationElement[]
+    encoding?: SMSEncoding
+    elements?: SMSInformationElement[]
 }
 
 export function build(payload: Uint8Array, options?: SMSBuildOptions): SMSPacket {
