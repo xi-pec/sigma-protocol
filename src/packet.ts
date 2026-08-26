@@ -86,15 +86,11 @@
        For 8-bit binary and UCS-2 unicode, character count and byte length match.
 */
 
+import { SMSEncoding, encode, decode } from "./encoding.js"
+
 export enum SMSFlagsBitmask {
     MTI = 0x03, // TP-MTI
     UDHI = 0x40 // TP-UDHI
-}
-
-export enum SMSEncoding {
-    GSM = 0x00, // 7-bit GSM
-    UTF8 = 0x04, // 8-bit UTF8
-    UNICODE = 0x08 // 16-bit Unicode
 }
 
 export interface SMSInformationElement {
@@ -112,23 +108,29 @@ export class SMSPacket {
     elements: SMSInformationElement[] // TP-UDH (IEs)
     payload: Uint8Array; // TP-UD (Message Body)
 
-    constructor(payload: Uint8Array, options?: SMSPacketOptions) {
+    constructor(payload: string | Uint8Array, options?: SMSPacketOptions) {
         this.encoding = options?.encoding ?? SMSEncoding.GSM
         this.elements = options?.elements ?? []
-        this.payload = payload
-
+        
         // Filter out invalid IE data
         this.elements = this.elements.filter(e => {
             switch(e.identifier) {
                 case 0x00: // 8-bit concatenation
                 case 0x08: // 16-bit concatenation
                 case 0x43: // SIGMA singatures
-                    return true
+                return true
                 
                 default:
                     return false
             }
         })
+
+        // Encode input if string payload is passed
+        if (typeof payload === "string") {
+            this.payload = encode(payload, this.encoding)
+        } else {
+            this.payload = payload
+        }
     }
 
     static from(raw: Uint8Array<ArrayBufferLike>) {
@@ -138,6 +140,10 @@ export class SMSPacket {
     serialize() {
         return serialize(this)
     }
+
+    decode() {
+        return decode(this.payload, this.encoding)
+    }
 }
 
 export function serialize(packet: SMSPacket): Uint8Array {
@@ -145,7 +151,7 @@ export function serialize(packet: SMSPacket): Uint8Array {
 
     // Get size of TP-UDH (this is TP-UDHL)
     let header_size = packet.elements.length ? 
-        1 + packet.elements
+        packet.elements
             .map(e => e.value.length + 2)
             .reduce((a, b) => a + b)
         : 0
@@ -154,17 +160,13 @@ export function serialize(packet: SMSPacket): Uint8Array {
     let data_size = 0
 
     if (packet.encoding == SMSEncoding.GSM) {
-        // GSM uses septets instead of octets
-        const header = Math.ceil((header_size * 8) / 7)
-        const body = Math.floor((packet.payload.length * 8) / 7)
-
-        data_size = header + body
+        data_size = Math.ceil(((has_header ? header_size + 1 : 0) * 8) / 7) + Math.floor((packet.payload.length * 8) / 7)
     } else {
         // UTF8 and Unicode uses octets
-        data_size = header_size + packet.payload.length
+        data_size = (has_header ? header_size + 1 : 0) + packet.payload.length
     }
 
-    let size = header_size + packet.payload.length
+    let size = (has_header ? header_size + 1 : 0) + packet.payload.length
     // TODO: Add 140 byte maximum limit
 
     // Construct serialized data
@@ -252,7 +254,6 @@ export function deserialize(raw: Uint8Array): SMSPacket {
     const payload = bounded_data.subarray(payload_offset)
 
     // Reconstruct Packet
-    
     const packet = new SMSPacket(payload, {
         encoding,
         elements
