@@ -69,7 +69,7 @@
         |-> TBD
 
         - *** SIGMA signature will be stored as an IE with the following parameters:
-        |-> IEI: 0x80
+        |-> IEI: 0x43
         |-> IE-DL: size of signature
         |-> IE-Data: actual signature data
         
@@ -102,26 +102,42 @@ export interface SMSInformationElement {
     value: Uint8Array // IE-Data
 }
 
-export interface SMSPacket {
-    encoding: SMSEncoding // TP-DCS
-    elements: SMSInformationElement[] // TP-UDH (IEs)
-    payload: Uint8Array; // TP-UD (Message Body)
-}
-
-export interface SMSBuildOptions {
+export interface SMSPacketOptions {
     encoding?: SMSEncoding
     elements?: SMSInformationElement[]
 }
 
-export function build(payload: Uint8Array, options?: SMSBuildOptions): SMSPacket {
-    // TODO: possible encoding detection and IE validation?
-    const packet: SMSPacket = {
-        encoding: options?.encoding ?? SMSEncoding.GSM,
-        elements: options?.elements ?? [],
-        payload
+export class SMSPacket {
+    encoding: SMSEncoding // TP-DCS
+    elements: SMSInformationElement[] // TP-UDH (IEs)
+    payload: Uint8Array; // TP-UD (Message Body)
+
+    constructor(payload: Uint8Array, options?: SMSPacketOptions) {
+        this.encoding = options?.encoding ?? SMSEncoding.GSM
+        this.elements = options?.elements ?? []
+        this.payload = payload
+
+        // Filter out invalid IE data
+        this.elements = this.elements.filter(e => {
+            switch(e.identifier) {
+                case 0x00: // 8-bit concatenation
+                case 0x08: // 16-bit concatenation
+                case 0x43: // SIGMA singatures
+                    return true
+                
+                default:
+                    return false
+            }
+        })
     }
 
-    return packet
+    static from(raw: Uint8Array<ArrayBufferLike>) {
+        return deserialize(raw)
+    }
+
+    serialize() {
+        return serialize(this)
+    }
 }
 
 export function serialize(packet: SMSPacket): Uint8Array {
@@ -236,11 +252,11 @@ export function deserialize(raw: Uint8Array): SMSPacket {
     const payload = bounded_data.subarray(payload_offset)
 
     // Reconstruct Packet
-    const packet: SMSPacket = {
+    
+    const packet = new SMSPacket(payload, {
         encoding,
-        elements,
-        payload
-    }
+        elements
+    })
 
     return packet
 }
