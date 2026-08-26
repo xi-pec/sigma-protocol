@@ -128,11 +128,11 @@ export function serialize(packet: SMSPacket): Uint8Array {
     const has_header = packet.elements.length > 0
 
     // Get size of TP-UDH (this is TP-UDHL)
-    let header_size = packet.elements
-        .map(e => e.value.length + 2)
-        .reduce((a, b) => a + b)
-
-    header_size += header_size ? 1 : 0
+    let header_size = packet.elements.length ? 
+        1 + packet.elements
+            .map(e => e.value.length + 2)
+            .reduce((a, b) => a + b)
+        : 0
 
     // Get size of TP-UD (this is TP-UDL)
     let data_size = 0
