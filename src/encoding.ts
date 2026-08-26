@@ -12,7 +12,7 @@ const encoder = new TextEncoder()
 const utf8_decoder = new TextDecoder()
 const unicode_decoder = new TextDecoder("utf-16be")
 
-export function encode(text: string, encoding: SMSEncoding) {
+export function encode(text: string, encoding: SMSEncoding): Uint8Array {
     switch(encoding) {
         case SMSEncoding.GSM: {
             // 7-bit encoding implementation
@@ -54,7 +54,7 @@ export function encode(text: string, encoding: SMSEncoding) {
     }
 }
 
-export function decode(raw: Uint8Array, encoding: SMSEncoding) {
+export function decode(raw: Uint8Array, encoding: SMSEncoding): string {
     switch(encoding) {
         case SMSEncoding.GSM: {
             // 7-bit decoding implementation
