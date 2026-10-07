@@ -119,7 +119,7 @@ export class SMSPacket {
                 case 0x00: // 8-bit concatenation
                 case 0x08: // 16-bit concatenation
                 case 0x43: // SIGMA singatures
-                return true
+                    return true
                 
                 default:
                     return false
