@@ -86,8 +86,10 @@
        For 8-bit binary and UCS-2 unicode, character count and byte length match.
 */
 
+import { concatenate, split } from "./concatenation.js"
 import { SMSEncoding, encode, decode } from "./encoding.js"
 import { serialize, deserialize } from "./serialization.js"
+import { sign, SignatureAlgorithm, SignatureAlgorithmKey, verify } from "./sigma.js"
 
 export enum SMSFlagsBitmask {
     MTI = 0x03, // TP-MTI
@@ -134,12 +136,28 @@ export class SMSPacket {
         }
     }
 
-    static from(raw: Uint8Array<ArrayBufferLike>) {
+    static deserialize(raw: Uint8Array<ArrayBufferLike>) {
         return deserialize(raw)
+    }
+
+    static concatenate(parts: SMSPacket[]) {
+        return concatenate(parts)
     }
 
     serialize() {
         return serialize(this)
+    }
+
+    split() {
+        return split(this)
+    }
+
+    sign(algorithm: SignatureAlgorithm, secret: SignatureAlgorithmKey) {
+        return sign(this, algorithm, secret)
+    }
+
+    verify(shared: SignatureAlgorithmKey) {
+        return verify(this, shared)
     }
 
     decode() {

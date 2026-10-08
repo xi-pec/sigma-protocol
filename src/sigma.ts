@@ -2,14 +2,14 @@ import { SMSPacket } from "./packet.js";
 import { p256 } from "@noble/curves/nist.js"
 import { ed25519 } from "@noble/curves/ed25519.js";
 
-type Key = Uint8Array<ArrayBufferLike> & Uint8Array<ArrayBuffer>
-
 export enum SignatureAlgorithm {
     ECDSA = 0x00,
     ED25519 = 0x01
 }
 
-export function sign(packet: SMSPacket, algorithm: SignatureAlgorithm, secret: Key): SMSPacket {
+export type SignatureAlgorithmKey = Uint8Array<ArrayBufferLike> & Uint8Array<ArrayBuffer>
+
+export function sign(packet: SMSPacket, algorithm: SignatureAlgorithm, secret: SignatureAlgorithmKey): SMSPacket {
     if (packet.elements.find(e => e.identifier == 0x43)) return packet
 
     const selected = {
@@ -31,7 +31,7 @@ export function sign(packet: SMSPacket, algorithm: SignatureAlgorithm, secret: K
     return packet
 }
 
-export function verify(packet: SMSPacket, shared: Key): boolean {
+export function verify(packet: SMSPacket, shared: SignatureAlgorithmKey): boolean {
     const element = packet.elements.find(e => e.identifier == 0x43)
     if (!element) return false
 
