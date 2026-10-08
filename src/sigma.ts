@@ -9,6 +9,20 @@ export enum SignatureAlgorithm {
 
 export type SignatureAlgorithmKey = Uint8Array<ArrayBufferLike> & Uint8Array<ArrayBuffer>
 
+export function keygen(algorithm: SignatureAlgorithm): { shared: SignatureAlgorithmKey, secret: SignatureAlgorithmKey } {
+    const selected = {
+        0x00: p256,
+        0x01: ed25519
+    }[algorithm]
+
+    const keys = selected.keygen()
+
+    return {
+        shared: keys.publicKey,
+        secret: keys.secretKey
+    }
+}
+
 export function sign(packet: SMSPacket, algorithm: SignatureAlgorithm, secret: SignatureAlgorithmKey): SMSPacket {
     if (packet.elements.find(e => e.identifier == 0x43)) return packet
 
