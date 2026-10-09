@@ -1,6 +1,7 @@
 import { SMSPacket } from "./packet.js";
 import { p256 } from "@noble/curves/nist.js"
 import { ed25519 } from "@noble/curves/ed25519.js";
+import { bytesToHex, hexToBytes } from "@noble/curves/utils.js";
 
 export enum SignatureAlgorithm {
   ECDSA = 0x00,
@@ -21,6 +22,17 @@ export class SignatureAlgorithmKey<
     this.key = key;
     this.algorithm = algorithm;
     this.kind = kind;
+  }
+
+  static fromHex<
+    A extends SignatureAlgorithm,
+    K extends KeyKind
+  >(hex: string, kind: K, algorithm: A) {
+    return new SignatureAlgorithmKey<A, K>(hexToBytes(hex), algorithm, kind)
+  }
+
+  toHex() {
+    return bytesToHex(this.key)
   }
 }
 
