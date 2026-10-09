@@ -1,5 +1,17 @@
 import { SMSPacket } from "./packet.js";
 import { SMSEncoding } from "./encoding.js";
-import { SignatureAlgorithm, keygen } from "./sigma.js";
+import {
+    keygen,
+    KeyKind,
+    SignatureAlgorithm,
+    SignatureAlgorithmKey,
+    SignatureAlgorithmSecretKey,
+    SignatureAlgorithmSharedKey,
+} from "./sigma.js";
 
-export { SMSPacket, SMSEncoding, SignatureAlgorithm, keygen }
+export { 
+    SMSPacket, SMSEncoding, 
+    SignatureAlgorithm, KeyKind, SignatureAlgorithmKey,
+    SignatureAlgorithmSecretKey, SignatureAlgorithmSharedKey,
+    keygen 
+}
