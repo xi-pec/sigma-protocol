@@ -89,7 +89,7 @@
 import { concatenate, split } from "./concatenation.js"
 import { SMSEncoding, encode, decode } from "./encoding.js"
 import { serialize, deserialize } from "./serialization.js"
-import { sign, SignatureAlgorithm, SignatureAlgorithmKey, verify } from "./sigma.js"
+import { sign, SignatureAlgorithm, SignatureAlgorithmSecretKey, SignatureAlgorithmSharedKey, verify } from "./sigma.js"
 
 export enum SMSFlagsBitmask {
     MTI = 0x03, // TP-MTI
@@ -152,11 +152,11 @@ export class SMSPacket {
         return split(this)
     }
 
-    sign(algorithm: SignatureAlgorithm, secret: SignatureAlgorithmKey) {
+    sign<A extends SignatureAlgorithm>(algorithm: A, secret: SignatureAlgorithmSecretKey<A>) {
         return sign(this, algorithm, secret)
     }
 
-    verify(shared: SignatureAlgorithmKey) {
+    verify<A extends SignatureAlgorithm>(shared: SignatureAlgorithmSharedKey<A>) {
         return verify(this, shared)
     }
 
