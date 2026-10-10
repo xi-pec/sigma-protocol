@@ -5,12 +5,16 @@ import {
     SMSAcknowledgementPacket,
     SMSFlagsBitmask,
     SMSInformationElement,
+    SMSKeyPacket,
     SMSMessagePacket,
-    SMSMessageTypeIndicator,
-    SMSPacket,
+    SMSMessageTypeIndicator
 } from "./packet.js"
+import { SignatureAlgorithm, SignatureAlgorithmKey, SignatureAlgorithmSharedKey } from "./sigma.js"
 
-export function serialize(packet: SMSPacket): Uint8Array {
+const encoder = new TextEncoder()
+const decoder = new TextDecoder()
+
+export function serialize(packet: SMSAcknowledgementPacket | SMSMessagePacket | SMSKeyPacket): Uint8Array {
     if (packet instanceof SMSAcknowledgementPacket) {
         const buffer = new Uint8Array(25)
 
@@ -84,12 +88,33 @@ export function serialize(packet: SMSPacket): Uint8Array {
         buffer.set(packet.payload, offset)
 
         return buffer
+    } else if (packet instanceof SMSKeyPacket) {
+        const ecdsa = encoder.encode(packet.ecdsa.toHex())
+        const ed25519 = encoder.encode(packet.ed25519.toHex())
+
+        const buffer = new Uint8Array(3 + ecdsa.length + ed25519.length)
+
+        // Byte 0 (Flags)
+        // Bit 0-1 -> SMS-KEYSHARE (0x03)
+        buffer[0] = 0x03
+
+        // Byte 1 (ECDSA key length)
+        buffer[1] = ecdsa.length
+
+        // Byte 2 (Ed25519 key length)
+        buffer[2] = ed25519.length
+
+        // Byte 3 to n
+        buffer.set(ecdsa, 3)
+        buffer.set(ed25519, 3 + ecdsa.length)
+
+        return buffer
     }
     
     return new Uint8Array()
 }
 
-export function deserialize(raw: Uint8Array): SMSAcknowledgementPacket | SMSMessagePacket | null {
+export function deserialize(raw: Uint8Array): SMSAcknowledgementPacket | SMSMessagePacket | SMSKeyPacket | null {
     // TODO: Add minimum 3-byte length
 
     const flags = raw[0]; // Flags
@@ -161,6 +186,18 @@ export function deserialize(raw: Uint8Array): SMSAcknowledgementPacket | SMSMess
             elements
         })
 
+        return packet
+    } else if (mti == SMSMessageTypeIndicator.KEYSHARE) {
+        const ecdsa_size = raw[1]
+        const ed25519_size = raw[2]
+
+        const ecdsa_hex = decoder.decode(raw.subarray(3, 3 + ecdsa_size))
+        const ed25519_hex = decoder.decode(raw.subarray(3 + ecdsa_size, 3 + ecdsa_size + ed25519_size))
+
+        const ecdsa = SignatureAlgorithmKey.fromHex(ecdsa_hex, "shared", SignatureAlgorithm.ECDSA)
+        const ed25519 = SignatureAlgorithmKey.fromHex(ed25519_hex, "shared", SignatureAlgorithm.ED25519)
+
+        const packet = new SMSKeyPacket(ecdsa, ed25519)
         return packet
     }
 

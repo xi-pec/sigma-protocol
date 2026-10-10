@@ -100,7 +100,8 @@ export enum SMSFlagsBitmask {
 
 export enum SMSMessageTypeIndicator {
     SUBMIT = 0x01,
-    STATUS_REPORT = 0x02
+    STATUS_REPORT = 0x02,
+    KEYSHARE = 0x03
 }
 
 export interface SMSInformationElement {
@@ -119,7 +120,7 @@ export interface SMSMessagePacketOptions {
 }
 
 export class SMSPacket {
-  static deserialize(raw: Uint8Array): SMSAcknowledgementPacket | SMSMessagePacket | null {
+  static deserialize(raw: Uint8Array): SMSAcknowledgementPacket | SMSMessagePacket | SMSKeyPacket | null {
     if (!raw || raw.length === 0) return null
     const mti = raw[0] & SMSFlagsBitmask.MTI;
 
@@ -129,6 +130,9 @@ export class SMSPacket {
 
         case SMSMessageTypeIndicator.SUBMIT:
             return SMSMessagePacket.deserialize(raw);
+
+        case SMSMessageTypeIndicator.KEYSHARE:
+            return SMSKeyPacket.deserialize(raw);
 
         default:
             return null
@@ -212,5 +216,26 @@ export class SMSMessagePacket {
 
     decode() {
         return decode(this.payload, this.encoding)
+    }
+}
+
+export class SMSKeyPacket {
+    ecdsa: SignatureAlgorithmSharedKey<SignatureAlgorithm.ECDSA>
+    ed25519: SignatureAlgorithmSharedKey<SignatureAlgorithm.ED25519>
+
+    constructor(
+        ecdsa: SignatureAlgorithmSharedKey<SignatureAlgorithm.ECDSA>,
+        ed25519: SignatureAlgorithmSharedKey<SignatureAlgorithm.ED25519>
+    ) {
+        this.ecdsa = ecdsa
+        this.ed25519 = ed25519
+    }
+
+    static deserialize(raw: Uint8Array) {
+        return deserialize(raw)
+    }
+
+    serialize() {
+        return serialize(this)
     }
 }
