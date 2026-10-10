@@ -165,7 +165,7 @@ export class SMSMessagePacket {
     payload: Uint8Array; // TP-UD (Message Body)
 
     constructor(payload: string | Uint8Array, options?: SMSMessagePacketOptions) {
-        this.id = v4()
+        this.id = options?.id ?? v4()
         this.encoding = options?.encoding ?? SMSEncoding.GSM
         this.elements = options?.elements ?? []
         
