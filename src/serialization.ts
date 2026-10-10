@@ -1,3 +1,6 @@
+import { parse, stringify } from "uuid"
+
+import { SMSEncoding } from "./encoding.js"
 import { 
     SMSAcknowledgementPacket,
     SMSFlagsBitmask,
@@ -6,7 +9,6 @@ import {
     SMSMessageTypeIndicator,
     SMSPacket,
 } from "./packet.js"
-import { SMSEncoding } from "./encoding.js"
 
 export function serialize(packet: SMSPacket): Uint8Array {
     if (packet instanceof SMSAcknowledgementPacket) {
@@ -17,7 +19,8 @@ export function serialize(packet: SMSPacket): Uint8Array {
         buffer[0] = 0x02
 
         // Bytes 1-16 (Message ID)
-        buffer.set(packet.id, 1)
+        const id = parse(packet.id)
+        buffer.set(id, 1)
 
         // Bytes 17-24 (Timestamp)
         const timestamp = BigInt(packet.timestamp);
@@ -51,15 +54,18 @@ export function serialize(packet: SMSPacket): Uint8Array {
         // Byte 0 (Flags)
         // Bit 0-1 -> SUBMIT (0x01); Bit 6 -> set if UDH present
         buffer[0] = 0x01 | (has_header ? SMSFlagsBitmask.UDHI : 0x00);
+
+        // Bytes 1-16 (TP-MR)
+        buffer.set(parse(packet.id), 1)
         
-        // Byte 1 (TP-DCS)
-        buffer[1] = packet.encoding
+        // Byte 17 (TP-DCS)
+        buffer[17] = packet.encoding
 
-        // Byte 2 (TP-UDL)
-        buffer[2] = data_size
+        // Byte 18 (TP-UDL)
+        buffer[18] = data_size
 
-        // Bytes 3 to N (TP-UD)
-        let offset = 3;
+        // Bytes 19 to N (TP-UD)
+        let offset = 19;
 
         if (has_header) {
             // TP-UDHL
@@ -90,7 +96,7 @@ export function deserialize(raw: Uint8Array): SMSAcknowledgementPacket | SMSMess
 
     const mti = flags & SMSFlagsBitmask.MTI
     if (mti == SMSMessageTypeIndicator.STATUS_REPORT) {
-        const id = raw.subarray(1, 17)
+        const id = stringify(raw.subarray(1, 17))
 
         let value = 0n;
         for (let i = 0; i < 8; i++) {
@@ -102,11 +108,13 @@ export function deserialize(raw: Uint8Array): SMSAcknowledgementPacket | SMSMess
         const packet = new SMSAcknowledgementPacket(id, { timestamp })
         return packet
     } else if (mti == SMSMessageTypeIndicator.SUBMIT) {
-        const encoding = raw[1] as SMSEncoding; // TP-DCS
-        const data_size = raw[2]; // TP-UDL
+        const id = stringify(raw.subarray(1, 17))
+
+        const encoding = raw[17] as SMSEncoding; // TP-DCS
+        const data_size = raw[18]; // TP-UDL
 
         const has_header = (flags & SMSFlagsBitmask.UDHI) !== 0
-        const data = raw.subarray(3) // TP-UD
+        const data = raw.subarray(19) // TP-UD
         
         // Get actual TP-UD data size
         let actual_data_size = 0;

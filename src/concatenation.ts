@@ -46,6 +46,7 @@ export function split(packet: SMSMessagePacket): SMSMessagePacket[] {
     parts.push(new SMSMessagePacket(
         packet.payload.subarray(0, initial),
         {
+            id: packet.id,
             encoding: packet.encoding,
             elements: initial_elements
         }
@@ -57,6 +58,7 @@ export function split(packet: SMSMessagePacket): SMSMessagePacket[] {
         parts.push(new SMSMessagePacket(
             packet.payload.subarray(start, end),
             {
+                id: packet.id,
                 encoding: packet.encoding,
                 elements: [{
                     identifier: extended ? 0x08 : 0x00,
@@ -124,6 +126,7 @@ export function concatenate(parts: SMSMessagePacket[]): SMSMessagePacket {
         .filter(e => e != null)
         .sort((a, b) => a.index - b.index)
 
+    let id = sorted[0].packet.id
     let encoding = sorted[0].packet.encoding
 
     // what the hell is this bro
@@ -142,7 +145,7 @@ export function concatenate(parts: SMSMessagePacket[]): SMSMessagePacket {
     }
 
     let packet = new SMSMessagePacket(payload, {
-        encoding,
+        id, encoding,
         elements: signature ? [{
             identifier: 0x43,
             value: signature

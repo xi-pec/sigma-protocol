@@ -86,6 +86,8 @@
        For 8-bit binary and UCS-2 unicode, character count and byte length match.
 */
 
+import { v4 } from "uuid"
+
 import { concatenate, split } from "./concatenation.js"
 import { SMSEncoding, encode, decode } from "./encoding.js"
 import { serialize, deserialize } from "./serialization.js"
@@ -111,6 +113,7 @@ export interface SMSAcknowledgementPacketOptions {
 }
 
 export interface SMSMessagePacketOptions {
+    id?: string
     encoding?: SMSEncoding
     elements?: SMSInformationElement[]
 }
@@ -134,10 +137,10 @@ export class SMSPacket {
 }
 
 export class SMSAcknowledgementPacket {
-    id: Uint8Array
+    id: string
     timestamp: number
 
-    constructor(id: Uint8Array, options: SMSAcknowledgementPacketOptions) {
+    constructor(id: string, options: SMSAcknowledgementPacketOptions) {
         this.id = id
         this.timestamp = options.timestamp ?? Date.now()
     }
@@ -152,11 +155,13 @@ export class SMSAcknowledgementPacket {
 }
 
 export class SMSMessagePacket {
+    id: string // TP-MR
     encoding: SMSEncoding // TP-DCS
     elements: SMSInformationElement[] // TP-UDH (IEs)
     payload: Uint8Array; // TP-UD (Message Body)
 
     constructor(payload: string | Uint8Array, options?: SMSMessagePacketOptions) {
+        this.id = v4()
         this.encoding = options?.encoding ?? SMSEncoding.GSM
         this.elements = options?.elements ?? []
         
