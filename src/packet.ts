@@ -140,9 +140,9 @@ export class SMSAcknowledgementPacket {
     id: string
     timestamp: number
 
-    constructor(id: string, options: SMSAcknowledgementPacketOptions) {
+    constructor(id: string, options?: SMSAcknowledgementPacketOptions) {
         this.id = id
-        this.timestamp = options.timestamp ?? Date.now()
+        this.timestamp = options?.timestamp ?? Date.now()
     }
 
     static deserialize(raw: Uint8Array) {
