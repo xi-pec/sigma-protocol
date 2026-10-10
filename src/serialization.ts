@@ -9,7 +9,7 @@ import {
     SMSMessagePacket,
     SMSMessageTypeIndicator
 } from "./packet.js"
-import { SignatureAlgorithm, SignatureAlgorithmKey, SignatureAlgorithmSharedKey } from "./sigma.js"
+import { SignatureAlgorithm, SignatureAlgorithmKey } from "./sigma.js"
 
 const encoder = new TextEncoder()
 const decoder = new TextDecoder()
@@ -53,7 +53,7 @@ export function serialize(packet: SMSAcknowledgementPacket | SMSMessagePacket | 
         // TODO: Add 140 byte maximum limit
 
         // Construct serialized data
-        const buffer = new Uint8Array(3 + size)
+        const buffer = new Uint8Array(19 + size)
 
         // Byte 0 (Flags)
         // Bit 0-1 -> SUBMIT (0x01); Bit 6 -> set if UDH present
