@@ -1,4 +1,4 @@
-import { SMSPacket, SMSAcknowledgementPacket, SMSMessagePacket } from "./packet.js";
+import { SMSPacket, SMSAcknowledgementPacket, SMSMessagePacket, SMSKeyPacket } from "./packet.js";
 import { SMSEncoding } from "./encoding.js";
 import {
     keygen,
@@ -11,7 +11,8 @@ import {
 
 export {
     // packets
-    SMSPacket, SMSAcknowledgementPacket, SMSMessagePacket,
+    SMSPacket, SMSAcknowledgementPacket,
+    SMSMessagePacket, SMSKeyPacket,
 
     // SIGMA
     SignatureAlgorithm, KeyKind, SignatureAlgorithmKey,
