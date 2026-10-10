@@ -15,22 +15,24 @@ const unicode_decoder = new TextDecoder("utf-16be")
 export function encode(text: string, encoding: SMSEncoding): Uint8Array {
     switch(encoding) {
         case SMSEncoding.GSM: {
-            // 7-bit encoding implementation
-            let bits = "";
+            const byteLength = Math.ceil((text.length * 7) / 8);
+            const bytes = new Uint8Array(byteLength);
+
             for (let i = 0; i < text.length; i++) {
                 const idx = GSM7_CHARSET.indexOf(text[i]);
                 const code = idx === -1 ? 0x3F : idx;
-                bits += code.toString(2).padStart(7, '0');
-            }
 
-            // Pad to complete 8-bit bytes if necessary
-            while (bits.length % 8 !== 0) {
-                bits += '0';
-            }
+                const bitPos = i * 7;
+                const byteIdx = Math.floor(bitPos / 8);
+                const bitShift = bitPos % 8;
 
-            const bytes = new Uint8Array(bits.length / 8);
-            for (let i = 0; i < bytes.length; i++) {
-                bytes[i] = parseInt(bits.slice(i * 8, (i + 1) * 8), 2);
+                // Place lower bits into current byte
+                bytes[byteIdx] |= (code << bitShift) & 0xFF;
+
+                // Spill overflow bits into the next byte if needed
+                if (byteIdx + 1 < bytes.length) {
+                    bytes[byteIdx + 1] |= (code >> (8 - bitShift)) & 0xFF;
+                }
             }
 
             return bytes;
@@ -57,19 +59,30 @@ export function encode(text: string, encoding: SMSEncoding): Uint8Array {
 export function decode(raw: Uint8Array, encoding: SMSEncoding): string {
     switch(encoding) {
         case SMSEncoding.GSM: {
-            // 7-bit decoding implementation
-            let bits = "";
-            for (let i = 0; i < raw.length; i++) {
-                bits += raw[i].toString(2).padStart(8, '0');
-            }
-
             let result = "";
-            for (let i = 0; i + 7 <= bits.length; i += 7) {
-                const septet = bits.slice(i, i + 7);
-                const code = parseInt(septet, 2);
+            const maxChars = Math.floor((raw.length * 8) / 7);
 
-                // Stop if padding or invalid null terminator in certain contexts
-                if (code === 0 && i + 7 > bits.length) break;
+            for (let i = 0; i < maxChars; i++) {
+                const bitPos = i * 7;
+                const byteIdx = Math.floor(bitPos / 8);
+                const bitShift = bitPos % 8;
+
+                if (byteIdx >= raw.length) break;
+
+                // Extract bits from current byte
+                let code = raw[byteIdx] >> bitShift;
+                const bitsFromFirst = 8 - bitShift;
+
+                // Reconstruct overflow bits from the next byte if split across octets
+                if (bitsFromFirst < 7 && byteIdx + 1 < raw.length) {
+                    code |= raw[byteIdx + 1] << bitsFromFirst;
+                }
+
+                code &= 0x7F;
+
+                // Stop if we encounter trailing padding zeros at the end
+                if (code === 0 && i >= maxChars - 1 && raw[byteIdx] === 0) break;
+
                 result += GSM7_CHARSET[code] || '';
             }
 
