@@ -115,7 +115,23 @@ export interface SMSMessagePacketOptions {
     elements?: SMSInformationElement[]
 }
 
-export type SMSPacket = SMSAcknowledgementPacket | SMSMessagePacket
+export class SMSPacket {
+  static deserialize(raw: Uint8Array): SMSAcknowledgementPacket | SMSMessagePacket | null {
+    if (!raw || raw.length === 0) return null
+    const mti = raw[0] & SMSFlagsBitmask.MTI;
+
+    switch (mti) {
+        case SMSMessageTypeIndicator.STATUS_REPORT:
+            return SMSAcknowledgementPacket.deserialize(raw);
+
+        case SMSMessageTypeIndicator.SUBMIT:
+            return SMSMessagePacket.deserialize(raw);
+
+        default:
+            return null
+    }
+  }
+}
 
 export class SMSAcknowledgementPacket {
     id: Uint8Array

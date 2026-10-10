@@ -83,7 +83,7 @@ export function serialize(packet: SMSPacket): Uint8Array {
     return new Uint8Array()
 }
 
-export function deserialize(raw: Uint8Array): SMSPacket | null {
+export function deserialize(raw: Uint8Array): SMSAcknowledgementPacket | SMSMessagePacket | null {
     // TODO: Add minimum 3-byte length
 
     const flags = raw[0]; // Flags
