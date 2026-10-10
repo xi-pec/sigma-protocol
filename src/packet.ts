@@ -96,22 +96,51 @@ export enum SMSFlagsBitmask {
     UDHI = 0x40 // TP-UDHI
 }
 
+export enum SMSMessageTypeIndicator {
+    SUBMIT = 0x01,
+    STATUS_REPORT = 0x02
+}
+
 export interface SMSInformationElement {
     identifier: number, // IEI
     value: Uint8Array // IE-Data
 }
 
-export interface SMSPacketOptions {
+export interface SMSAcknowledgementPacketOptions {
+    timestamp?: number
+}
+
+export interface SMSMessagePacketOptions {
     encoding?: SMSEncoding
     elements?: SMSInformationElement[]
 }
 
-export class SMSPacket {
+export type SMSPacket = SMSAcknowledgementPacket | SMSMessagePacket
+
+export class SMSAcknowledgementPacket {
+    id: Uint8Array
+    timestamp: number
+
+    constructor(id: Uint8Array, options: SMSAcknowledgementPacketOptions) {
+        this.id = id
+        this.timestamp = options.timestamp ?? Date.now()
+    }
+
+    static deserialize(raw: Uint8Array) {
+        return deserialize(raw)
+    }
+
+    serialize() {
+        return serialize(this)
+    }
+}
+
+export class SMSMessagePacket {
     encoding: SMSEncoding // TP-DCS
     elements: SMSInformationElement[] // TP-UDH (IEs)
     payload: Uint8Array; // TP-UD (Message Body)
 
-    constructor(payload: string | Uint8Array, options?: SMSPacketOptions) {
+    constructor(payload: string | Uint8Array, options?: SMSMessagePacketOptions) {
         this.encoding = options?.encoding ?? SMSEncoding.GSM
         this.elements = options?.elements ?? []
         
@@ -140,7 +169,7 @@ export class SMSPacket {
         return deserialize(raw)
     }
 
-    static concatenate(parts: SMSPacket[]) {
+    static concatenate(parts: SMSMessagePacket[]) {
         return concatenate(parts)
     }
 

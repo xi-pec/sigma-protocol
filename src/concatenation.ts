@@ -1,10 +1,10 @@
-import { SMSInformationElement, SMSPacket } from "./packet.js";
+import { SMSInformationElement, SMSMessagePacket } from "./packet.js";
 
-function ie(packet: SMSPacket) {
+function ie(packet: SMSMessagePacket) {
     return packet.elements.find(e => e.identifier == 0x00 || e.identifier == 0x08)
 }
 
-export function split(packet: SMSPacket): SMSPacket[] {
+export function split(packet: SMSMessagePacket): SMSMessagePacket[] {
     if (packet.elements.filter(e => e.identifier == 0x00 || e.identifier == 0x08).length) return [packet]
 
     let header_size = packet.elements.reduce((cur, next) => cur + next.value.length + 2, 0)
@@ -23,7 +23,7 @@ export function split(packet: SMSPacket): SMSPacket[] {
     let initial = parts_size - sigma_size
     let parts_count = Math.ceil((packet.payload.length + sigma_size) / parts_size)
 
-    let parts: SMSPacket[] = []
+    let parts: SMSMessagePacket[] = []
     let ref = Math.floor(Math.random() * (extended ? 65536 : 256))
 
     let initial_elements: SMSInformationElement[] = [
@@ -43,7 +43,7 @@ export function split(packet: SMSPacket): SMSPacket[] {
     ]
     if (sigma) initial_elements.push(sigma)
 
-    parts.push(new SMSPacket(
+    parts.push(new SMSMessagePacket(
         packet.payload.subarray(0, initial),
         {
             encoding: packet.encoding,
@@ -54,7 +54,7 @@ export function split(packet: SMSPacket): SMSPacket[] {
     for (let i = 0; i < parts_count - 1; i++) {
         let start = initial + parts_size * i
         let end = start + parts_size
-        parts.push(new SMSPacket(
+        parts.push(new SMSMessagePacket(
             packet.payload.subarray(start, end),
             {
                 encoding: packet.encoding,
@@ -78,11 +78,11 @@ export function split(packet: SMSPacket): SMSPacket[] {
     return parts
 }
 
-export function concatenate(parts: SMSPacket[]): SMSPacket {
+export function concatenate(parts: SMSMessagePacket[]): SMSMessagePacket {
     if (parts.length == 0) 
         throw new Error("No parts to concatenate")
 
-    let mapped: ({ ref: number, total: number, index: number, packet: SMSPacket } | null)[] = parts.map(packet => {
+    let mapped: ({ ref: number, total: number, index: number, packet: SMSMessagePacket } | null)[] = parts.map(packet => {
         let data = ie(packet)
         if (!data) return null
 
@@ -141,7 +141,7 @@ export function concatenate(parts: SMSPacket[]): SMSPacket {
         offset += part.packet.payload.length
     }
 
-    let packet = new SMSPacket(payload, {
+    let packet = new SMSMessagePacket(payload, {
         encoding,
         elements: signature ? [{
             identifier: 0x43,

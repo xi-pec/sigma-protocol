@@ -1,4 +1,4 @@
-import { SMSPacket } from "./packet.js";
+import { SMSMessagePacket } from "./packet.js";
 import { p256 } from "@noble/curves/nist.js"
 import { ed25519 } from "@noble/curves/ed25519.js";
 import { bytesToHex, hexToBytes } from "@noble/curves/utils.js";
@@ -69,7 +69,7 @@ export function keygen<A extends SignatureAlgorithm>(algorithm: A): {
     }
 }
 
-export function sign<A extends SignatureAlgorithm>(packet: SMSPacket, algorithm: A, secret: SignatureAlgorithmSecretKey<A>): SMSPacket {
+export function sign<A extends SignatureAlgorithm>(packet: SMSMessagePacket, algorithm: A, secret: SignatureAlgorithmSecretKey<A>): SMSMessagePacket {
     if (packet.elements.find(e => e.identifier == 0x43)) return packet
 
     const selected = {
@@ -91,7 +91,7 @@ export function sign<A extends SignatureAlgorithm>(packet: SMSPacket, algorithm:
     return packet
 }
 
-export function verify<A extends SignatureAlgorithm>(packet: SMSPacket, shared: SignatureAlgorithmSharedKey<A>): boolean {
+export function verify<A extends SignatureAlgorithm>(packet: SMSMessagePacket, shared: SignatureAlgorithmSharedKey<A>): boolean {
     const element = packet.elements.find(e => e.identifier == 0x43)
     if (!element) return false
 
