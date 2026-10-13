@@ -5,7 +5,7 @@ export enum SMSEncoding {
 }
 
 // charsets
-const GSM7_CHARSET = "@£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞ\x1bÆæßÉ !\"#¤%&'()*+,-./0123456789:;<=>?¡ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÑÜ`¿abcdefghijklmnopqrstuvwxyzäöñüà";
+const GSM7_CHARSET = "@£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞ\x1bÆæßÉ !\"#¤%&'()*+,-./0123456789:;<=>?¡ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÑÜ`¿abcdefghijklmnopqrstuvwxyzäöñüà\0";
 
 // encoders and decoders
 const encoder = new TextEncoder()
@@ -15,11 +15,16 @@ const unicode_decoder = new TextDecoder("utf-16be")
 export function encode(text: string, encoding: SMSEncoding): Uint8Array {
     switch(encoding) {
         case SMSEncoding.GSM: {
-            const byteLength = Math.ceil((text.length * 7) / 8);
+            let clean = text
+            if (text.length % 8 == 7) {
+                clean += " "
+            }
+        
+            const byteLength = Math.ceil((clean.length * 7) / 8);
             const bytes = new Uint8Array(byteLength);
 
-            for (let i = 0; i < text.length; i++) {
-                const idx = GSM7_CHARSET.indexOf(text[i]);
+            for (let i = 0; i < clean.length; i++) {
+                const idx = GSM7_CHARSET.indexOf(clean[i]);
                 const code = idx === -1 ? 0x3F : idx;
 
                 const bitPos = i * 7;
@@ -86,7 +91,7 @@ export function decode(raw: Uint8Array, encoding: SMSEncoding): string {
                 result += GSM7_CHARSET[code] || '';
             }
 
-            return result;
+            return result.trimEnd();
         }   
 
         case SMSEncoding.UTF8:
